@@ -7,22 +7,16 @@ namespace BiblioSystemV2.Services
 {
     public class LecturaXML
     {
-        private readonly string rutaArchivo;
-
-        public LecturaXML(string? rutaArchivo = null)
+        public Catalogo LeerCatalogo(Stream archivo)
         {
-            this.rutaArchivo = rutaArchivo ?? Path.Combine(AppContext.BaseDirectory, "Services", "entrada_100.xml");
-        }
-
-        public Catalogo LeerCatalogo()
-        {
+            ArgumentNullException.ThrowIfNull(archivo);
             XmlReaderSettings configuracion = new XmlReaderSettings
             {
                 DtdProcessing = DtdProcessing.Prohibit,
                 XmlResolver = null
             };
 
-            using XmlReader lector = XmlReader.Create(this.rutaArchivo, configuracion);
+            using XmlReader lector = XmlReader.Create(archivo, configuracion);
             XDocument documento = XDocument.Load(lector);
             XElement raizXml = documento.Root ?? throw new InvalidDataException("El documento XML no tiene un elemento raiz.");
             XElement listaCategorias = raizXml.Element("listaCategorias")

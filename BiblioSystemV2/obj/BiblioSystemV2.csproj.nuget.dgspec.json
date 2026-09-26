@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "c:\\Users\\Andri\\Documents\\Repositorios\\IPC2_Proy02_202602_-202505058\\BiblioSystemV2\\BiblioSystemV2.csproj": {}
+    "C:\\Users\\Andri\\Documents\\Repositorios\\IPC2_Proy02_202602_-202505058\\BiblioSystemV2\\BiblioSystemV2.csproj": {}
   },
   "projects": {
-    "c:\\Users\\Andri\\Documents\\Repositorios\\IPC2_Proy02_202602_-202505058\\BiblioSystemV2\\BiblioSystemV2.csproj": {
+    "C:\\Users\\Andri\\Documents\\Repositorios\\IPC2_Proy02_202602_-202505058\\BiblioSystemV2\\BiblioSystemV2.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "c:\\Users\\Andri\\Documents\\Repositorios\\IPC2_Proy02_202602_-202505058\\BiblioSystemV2\\BiblioSystemV2.csproj",
+        "projectUniqueName": "C:\\Users\\Andri\\Documents\\Repositorios\\IPC2_Proy02_202602_-202505058\\BiblioSystemV2\\BiblioSystemV2.csproj",
         "projectName": "BiblioSystemV2",
-        "projectPath": "c:\\Users\\Andri\\Documents\\Repositorios\\IPC2_Proy02_202602_-202505058\\BiblioSystemV2\\BiblioSystemV2.csproj",
+        "projectPath": "C:\\Users\\Andri\\Documents\\Repositorios\\IPC2_Proy02_202602_-202505058\\BiblioSystemV2\\BiblioSystemV2.csproj",
         "packagesPath": "C:\\Users\\Andri\\.nuget\\packages\\",
-        "outputPath": "c:\\Users\\Andri\\Documents\\Repositorios\\IPC2_Proy02_202602_-202505058\\BiblioSystemV2\\obj\\",
+        "outputPath": "C:\\Users\\Andri\\Documents\\Repositorios\\IPC2_Proy02_202602_-202505058\\BiblioSystemV2\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\Andri\\AppData\\Roaming\\NuGet\\NuGet.Config"

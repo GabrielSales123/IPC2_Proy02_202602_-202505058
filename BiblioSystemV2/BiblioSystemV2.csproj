@@ -6,8 +6,4 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
-  <ItemGroup>
-    <None Update="Services\entrada_100.xml" CopyToOutputDirectory="PreserveNewest" />
-  </ItemGroup>
-
 </Project>
