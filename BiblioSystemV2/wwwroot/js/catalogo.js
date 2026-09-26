@@ -15,6 +15,7 @@
     const graphOutput = document.getElementById("graphvizOutput");
     let uploadedXmlFile = null;
     let graphObjectUrl = null;
+    let catalogRoot = null;
 
     function clearCategoryOptions() {
         [categorySelect, graphCategorySelect, graphBooksSelect].forEach((select) => {
@@ -26,7 +27,10 @@
     }
 
     function addCategoryOptions(category, depth = 0) {
-        [categorySelect, graphCategorySelect, graphBooksSelect].forEach((select) => {
+        const selectors = category.fromXml === false
+            ? [categorySelect]
+            : [categorySelect, graphCategorySelect, graphBooksSelect];
+        selectors.forEach((select) => {
             const option = document.createElement("option");
             option.value = category.nombre;
             option.textContent = `${"- ".repeat(depth)}${category.nombre}`;
@@ -37,8 +41,11 @@
     }
 
     function clearCatalog(message, isError = false) {
+        catalogRoot = null;
         totalBooks.textContent = "0";
         totalCategories.textContent = "0";
+        document.getElementById("menorIsbn").textContent = "--";
+        document.getElementById("mayorIsbn").textContent = "--";
         folderTitle.textContent = "Sin catálogo";
         folderCount.textContent = "Carga un XML para iniciar";
         uploadedXmlFile = null;
@@ -73,6 +80,306 @@
         return 1 + category.subcategorias.reduce(
             (count, child) => count + countCategories(child), 0);
     }
+
+    function visitCategories(category, action) {
+        action(category);
+        category.subcategorias.forEach((child) => visitCategories(child, action));
+    }
+
+    function createBookNode(book) {
+        return { book, left: null, right: null };
+    }
+
+    function insertBookNode(root, book) {
+        if (!root) {
+            return { root: createBookNode(book), inserted: true };
+        }
+
+        if (book.isbn === root.book.isbn) {
+            return { root, inserted: false };
+        }
+
+        const side = book.isbn < root.book.isbn ? "left" : "right";
+        const result = insertBookNode(root[side], book);
+        root[side] = result.root;
+        return { root, inserted: result.inserted };
+    }
+
+    function searchBookNode(root, isbn) {
+        let current = root;
+        while (current) {
+            if (current.book.isbn === isbn) {
+                return current.book;
+            }
+            current = isbn < current.book.isbn ? current.left : current.right;
+        }
+        return null;
+    }
+
+    function removeBookNode(root, isbn) {
+        if (!root) {
+            return { root: null, removed: null };
+        }
+
+        if (isbn < root.book.isbn) {
+            const result = removeBookNode(root.left, isbn);
+            root.left = result.root;
+            return { root, removed: result.removed };
+        }
+        if (isbn > root.book.isbn) {
+            const result = removeBookNode(root.right, isbn);
+            root.right = result.root;
+            return { root, removed: result.removed };
+        }
+
+        if (!root.left) {
+            return { root: root.right, removed: root.book };
+        }
+        if (!root.right) {
+            return { root: root.left, removed: root.book };
+        }
+
+        let successorParent = root;
+        let successor = root.right;
+        while (successor.left) {
+            successorParent = successor;
+            successor = successor.left;
+        }
+
+        root.book = successor.book;
+        if (successorParent === root) {
+            successorParent.right = successor.right;
+        } else {
+            successorParent.left = successor.right;
+        }
+        return { root, removed: { isbn, title: "", author: "", category: "" } };
+    }
+
+    function listBooksInOrder(root, books = []) {
+        if (!root) {
+            return books;
+        }
+        listBooksInOrder(root.left, books);
+        books.push(root.book);
+        listBooksInOrder(root.right, books);
+        return books;
+    }
+
+    function initializeBookTrees(category) {
+        let root = null;
+        category.libros.forEach((book) => {
+            root = insertBookNode(root, book).root;
+        });
+        category.bookTree = root;
+        category.subcategorias.forEach(initializeBookTrees);
+    }
+
+    function synchronizeBookLists(category) {
+        category.libros = listBooksInOrder(category.bookTree);
+        category.subcategorias.forEach(synchronizeBookLists);
+    }
+
+    function findBook(isbn) {
+        let found = null;
+        visitCategories(catalogRoot, (category) => {
+            if (!found) {
+                const book = searchBookNode(category.bookTree, isbn);
+                if (book) {
+                    found = { book, category };
+                }
+            }
+        });
+        return found;
+    }
+
+    function refreshBookSummary() {
+        let minimum = null;
+        let maximum = null;
+        let count = 0;
+        visitCategories(catalogRoot, (category) => {
+            const books = listBooksInOrder(category.bookTree);
+            count += books.length;
+            if (books.length === 0) {
+                return;
+            }
+            minimum = minimum == null ? books[0].isbn : Math.min(minimum, books[0].isbn);
+            const lastIsbn = books[books.length - 1].isbn;
+            maximum = maximum == null ? lastIsbn : Math.max(maximum, lastIsbn);
+        });
+
+        totalBooks.textContent = String(count);
+        document.getElementById("menorIsbn").textContent = minimum == null ? "--" : String(minimum);
+        document.getElementById("mayorIsbn").textContent = maximum == null ? "--" : String(maximum);
+    }
+
+    function showSearchMessage(message, isError = false) {
+        const result = document.getElementById("resultadoBusqueda");
+        result.replaceChildren();
+        const text = document.createElement("p");
+        text.className = isError ? "browser-message error" : "browser-message";
+        text.textContent = message;
+        result.append(text);
+    }
+
+    function parseIsbn(inputId) {
+        const value = document.getElementById(inputId).value.trim();
+        if (!/^\d+$/.test(value) || Number(value) <= 0) {
+            return null;
+        }
+        return Number(value);
+    }
+
+    function showOperationMessage(message, isError = false) {
+        let status = document.getElementById("catalogOperationStatus");
+        if (!status) {
+            status = document.createElement("p");
+            status.id = "catalogOperationStatus";
+            status.className = "mutation-status";
+            document.querySelector(".forms-grid").after(status);
+        }
+        status.textContent = message;
+        status.classList.toggle("error", isError);
+    }
+
+    function refreshCatalogView() {
+        synchronizeBookLists(catalogRoot);
+        renderCatalog(catalogRoot);
+        refreshBookSummary();
+    }
+
+    window.mostrarFormularioCategoria = () => {
+        if (!catalogRoot) {
+            showOperationMessage("Primero carga un archivo XML para agregar una categoría.", true);
+            return;
+        }
+
+        const nombre = window.prompt("Nombre de la nueva categoría de Catalogo:");
+        if (nombre == null) {
+            return;
+        }
+
+        const nombreLimpio = nombre.trim();
+        if (!nombreLimpio) {
+            showOperationMessage("El nombre de la categoría no puede quedar vacío.", true);
+            return;
+        }
+
+        let duplicada = false;
+        visitCategories(catalogRoot, (category) => {
+            if (category.nombre.localeCompare(nombreLimpio, undefined, { sensitivity: "accent" }) === 0) {
+                duplicada = true;
+            }
+        });
+        if (duplicada) {
+            showOperationMessage(`Ya existe una categoría llamada '${nombreLimpio}'.`, true);
+            return;
+        }
+
+        synchronizeBookLists(catalogRoot);
+        catalogRoot.subcategorias.push({
+            nombre: nombreLimpio,
+            libros: [],
+            subcategorias: [],
+            fromXml: false
+        });
+        catalogRoot.subcategorias.sort((left, right) => left.nombre.localeCompare(right.nombre));
+        renderCatalog(catalogRoot);
+        refreshBookSummary();
+        showOperationMessage(`Categoría '${nombreLimpio}' agregada temporalmente a Catalogo. El XML original no se modificó.`);
+    };
+
+    window.registrarLibro = () => {
+        if (!catalogRoot) {
+            showOperationMessage("Primero carga un archivo XML.", true);
+            return;
+        }
+
+        const isbn = parseIsbn("isbn");
+        const title = document.getElementById("titulo").value.trim();
+        const author = document.getElementById("autor").value.trim();
+        const categoryName = categorySelect.value;
+        if (isbn == null || !title || !author || !categoryName) {
+            showOperationMessage("Completa ISBN, título, autor y categoría con datos válidos.", true);
+            return;
+        }
+        if (findBook(isbn)) {
+            showOperationMessage(`Ya existe un libro con el ISBN ${isbn}.`, true);
+            return;
+        }
+
+        let targetCategory = null;
+        visitCategories(catalogRoot, (category) => {
+            if (category.nombre === categoryName) {
+                targetCategory = category;
+            }
+        });
+        if (!targetCategory) {
+            showOperationMessage("No se encontró la categoría seleccionada.", true);
+            return;
+        }
+
+        const book = { isbn, titulo: title, autor: author, categoria: categoryName };
+        const result = insertBookNode(targetCategory.bookTree, book);
+        targetCategory.bookTree = result.root;
+        refreshCatalogView();
+        document.getElementById("isbn").value = "";
+        document.getElementById("titulo").value = "";
+        document.getElementById("autor").value = "";
+        categorySelect.value = "";
+        showOperationMessage(`Libro agregado temporalmente. El XML original no se modificó.`);
+    };
+
+    window.buscarLibro = () => {
+        if (!catalogRoot) {
+            showSearchMessage("Primero carga un archivo XML.", true);
+            return;
+        }
+
+        const isbn = parseIsbn("buscarIsbn");
+        if (isbn == null) {
+            showSearchMessage("Ingresa un ISBN positivo y válido.", true);
+            return;
+        }
+
+        const match = findBook(isbn);
+        if (!match) {
+            showSearchMessage(`No se encontró un libro con ISBN ${isbn}.`, true);
+            return;
+        }
+
+        showBook(match.book);
+        const result = document.getElementById("resultadoBusqueda");
+        result.replaceChildren();
+        const text = document.createElement("p");
+        text.textContent = `${match.book.titulo} | ${match.book.autor} | ${match.category.nombre}`;
+        result.append(text);
+    };
+
+    window.eliminarLibro = () => {
+        if (!catalogRoot) {
+            showOperationMessage("Primero carga un archivo XML.", true);
+            return;
+        }
+
+        const isbn = parseIsbn("eliminarIsbn");
+        if (isbn == null) {
+            showOperationMessage("Ingresa un ISBN positivo y válido.", true);
+            return;
+        }
+
+        const match = findBook(isbn);
+        if (!match) {
+            showOperationMessage(`No se encontró un libro con ISBN ${isbn}.`, true);
+            return;
+        }
+
+        const result = removeBookNode(match.category.bookTree, isbn);
+        match.category.bookTree = result.root;
+        refreshCatalogView();
+        document.getElementById("eliminarIsbn").value = "";
+        showSearchMessage("Ingresa un ISBN para realizar una búsqueda.");
+        showOperationMessage(`Libro ${isbn} eliminado temporalmente. El XML original no se modificó.`);
+    };
 
     function updateFolderSummary(category) {
         folderTitle.textContent = category.nombre;
@@ -199,11 +506,14 @@
     }
 
     function renderCatalog(rootCategory) {
+        catalogRoot = rootCategory;
+        initializeBookTrees(catalogRoot);
         tree.replaceChildren(createFolder(rootCategory, true));
         clearCategoryOptions();
         addCategoryOptions(rootCategory);
         totalBooks.textContent = String(countBooks(rootCategory));
         totalCategories.textContent = String(countCategories(rootCategory));
+        refreshBookSummary();
         updateFolderSummary(rootCategory);
         bookDetails.replaceChildren();
         const message = document.createElement("p");
@@ -290,7 +600,11 @@
             }
 
             uploadedXmlFile = file;
+            visitCategories(resultado, (category) => {
+                category.fromXml = true;
+            });
             renderCatalog(resultado);
+            showOperationMessage("Catálogo cargado. Agregar y eliminar libros solo cambia el árbol temporal de esta página.");
         } catch (error) {
             clearCatalog(error.message || "No fue posible cargar el archivo XML.", true);
         } finally {

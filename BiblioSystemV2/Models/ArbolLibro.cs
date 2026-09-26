@@ -76,6 +76,73 @@ namespace BiblioSystemV2.Models
         {
             return this.raiz;
         }
+
+        public bool eliminar(long isbn)
+        {
+            NodoLibro? nodo = buscar(isbn);
+            if (nodo == null)
+            {
+                return false;
+            }
+
+            if (nodo.getIzquierda() == null)
+            {
+                ReemplazarNodo(nodo, nodo.getDerecha());
+            }
+            else if (nodo.getDerecha() == null)
+            {
+                ReemplazarNodo(nodo, nodo.getIzquierda());
+            }
+            else
+            {
+                NodoLibro sucesor = ObtenerMinimo(nodo.getDerecha()!);
+                if (sucesor.getPadre() != nodo)
+                {
+                    ReemplazarNodo(sucesor, sucesor.getDerecha());
+                    sucesor.setDerecha(nodo.getDerecha());
+                    sucesor.getDerecha()?.setPadre(sucesor);
+                }
+
+                ReemplazarNodo(nodo, sucesor);
+                sucesor.setIzquierda(nodo.getIzquierda());
+                sucesor.getIzquierda()?.setPadre(sucesor);
+            }
+
+            nodo.setPadre(null);
+            nodo.setIzquierda(null);
+            nodo.setDerecha(null);
+            return true;
+        }
+
+        private static NodoLibro ObtenerMinimo(NodoLibro nodo)
+        {
+            while (nodo.getIzquierda() != null)
+            {
+                nodo = nodo.getIzquierda()!;
+            }
+
+            return nodo;
+        }
+
+        private void ReemplazarNodo(NodoLibro nodo, NodoLibro? reemplazo)
+        {
+            NodoLibro? padre = nodo.getPadre();
+            if (padre == null)
+            {
+                this.raiz = reemplazo;
+            }
+            else if (padre.getIzquierda() == nodo)
+            {
+                padre.setIzquierda(reemplazo);
+            }
+            else
+            {
+                padre.setDerecha(reemplazo);
+            }
+
+            reemplazo?.setPadre(padre);
+        }
+
         public NodoLibro? recursividadBuscar(NodoLibro? aux, long llave)
         {
             if (aux == null)
