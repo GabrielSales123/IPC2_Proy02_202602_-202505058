@@ -11,8 +11,8 @@ namespace BiblioSystemV2.Models{
         {
             this.nombre = nombre;
             this.padre = null; 
-            this.subcategorias = new ArbolCategorias();
-            this.libros = new ArbolLibro();
+            this.subcategorias = null;
+            this.libros = null;
         }
 
         public string? getNombre()
@@ -53,6 +53,23 @@ namespace BiblioSystemV2.Models{
         public void setLibros(ArbolLibro? libros)
         {
             this.libros = libros;
+        }
+
+        public bool sinLibros()
+        {
+            if(this.libros == null){
+                return true;
+            }
+            else{ return false;}
+        }
+
+        public bool sinSubcategoria()
+        {
+            if(this.subcategorias == null)
+            {
+                return true;
+            }
+            else{return false;}
         }
     }
     
